@@ -4,6 +4,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import se.kth.id2203.epfd.EPFD;
 import se.kth.id2203.epfd.events.EPFDInit;
 import se.kth.id2203.epfd.events.Restore;
 import se.kth.id2203.epfd.events.Suspect;
@@ -14,6 +15,7 @@ import se.kth.id2203.omega.events.OmegaTimeout;
 import se.kth.id2203.omega.events.Trust;
 import se.kth.id2203.omega.ports.OmegaPort;
 import se.sics.kompics.*;
+import se.sics.kompics.network.Network;
 import se.sics.kompics.timer.SchedulePeriodicTimeout;
 import se.sics.kompics.timer.Timer;
 
@@ -32,11 +34,28 @@ public class Omega extends ComponentDefinition {
     private Set<NetAddress> all = new HashSet<>();
     private Set<NetAddress> suspected = new HashSet<>();
 
-    protected final Negative<OmegaPort> omegaPort = provides(OmegaPort.class);
-    protected final Positive<EPFDPort> epfdPort = requires(EPFDPort.class);
     protected final Positive<Timer> timer = requires(Timer.class);
+    protected final Positive<Network> net = requires(Network.class);
+    public final Negative<OmegaPort> omegaPort = provides(OmegaPort.class);
+    protected final Positive<EPFDPort> epfdPort = requires(EPFDPort.class);
 
     private UUID timeoutId;
+    private Component epfd;
+
+    public Omega(OmegaInit omegaInit){
+        LOG.debug("Omega Initialized");
+        suspected = new HashSet<>();
+        leader = null;
+        all = ImmutableSet.copyOf(omegaInit.nodes);
+        //trigger(new EPFDInit(ImmutableSet.copyOf(omegaInit.nodes)), epfdPort);
+        epfd = create(EPFD.class, new EPFDInit(omegaInit.nodes));
+        EPFD epfddef = (EPFD) epfd.getComponent();
+        connect(epfddef.epfd, epfdPort, Channel.TWO_WAY);
+
+        connect(timer, epfd.getNegative(Timer.class), Channel.TWO_WAY);
+        connect(net, epfd.getNegative(Network.class), Channel.TWO_WAY);
+        //trigger(new Start(), epfd.getControl());
+    }
 
     protected final Handler<Start> startHandler = new Handler<Start>() {
         @Override
@@ -51,16 +70,6 @@ public class Omega extends ComponentDefinition {
         }
     };
 
-    protected final Handler<OmegaInit> omegaInitHandler = new Handler<OmegaInit>() {
-        @Override
-        public void handle(OmegaInit omegaInit) {
-            LOG.debug("Omega Initialized");
-            suspected = new HashSet<>();
-            leader = null;
-            all = ImmutableSet.copyOf(omegaInit.nodes);
-            trigger(new EPFDInit(ImmutableSet.copyOf(omegaInit.nodes)), epfdPort);
-        }
-    };
 
     protected final Handler<OmegaTimeout> timeoutHandler = new Handler<OmegaTimeout>() {
         @Override
@@ -100,6 +109,5 @@ public class Omega extends ComponentDefinition {
         subscribe(suspectHandler, epfdPort);
         subscribe(timeoutHandler, timer);
         subscribe(startHandler, control);
-        subscribe(omegaInitHandler, omegaPort);
     }
 }

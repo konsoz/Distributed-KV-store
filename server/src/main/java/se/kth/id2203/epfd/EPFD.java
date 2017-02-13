@@ -22,7 +22,7 @@ public class EPFD extends ComponentDefinition {
 
 	final static Logger LOG = LoggerFactory.getLogger(EPFD.class);
 
-	protected final Negative<EPFDPort> epfd = provides(EPFDPort.class);
+	public final Negative<EPFDPort> epfd = provides(EPFDPort.class);
 	protected final Positive<Network> net = requires(Network.class);
 	protected final Positive<Timer> timer = requires(Timer.class);
 
@@ -36,6 +36,15 @@ public class EPFD extends ComponentDefinition {
 	private Set<NetAddress> alive = new HashSet<>();
 	private Set<NetAddress> suspected = new HashSet<>();
 
+	public EPFD(EPFDInit epfdInit){
+        LOG.debug("EPFD Initialized, monitoring {} processes", epfdInit.nodes.size());
+        alive = ImmutableSet.copyOf(epfdInit.nodes);
+        all = ImmutableSet.copyOf(epfdInit.nodes);
+        suspected = new HashSet<>();
+        seqnum = 0;
+        delay = delta;
+    }
+
 	protected final Handler<Start> startHandler = new Handler<Start>() {
 		@Override
 		public void handle(Start e) {
@@ -48,17 +57,6 @@ public class EPFD extends ComponentDefinition {
         }
 	};
 
-    protected final Handler<EPFDInit> initHandler = new Handler<EPFDInit>() {
-        @Override
-        public void handle(EPFDInit epfdInit) {
-            LOG.debug("EPFD Initialized, monitoring {} processes", epfdInit.nodes.size());
-            alive = ImmutableSet.copyOf(epfdInit.nodes);
-            all = ImmutableSet.copyOf(epfdInit.nodes);
-            suspected = new HashSet<>();
-            seqnum = 0;
-            delay = delta;
-        }
-    };
 
     protected  final Handler<EPFDTimeout> timeoutHandler = new Handler<EPFDTimeout>() {
 		@Override
@@ -109,7 +107,6 @@ public class EPFD extends ComponentDefinition {
 		subscribe(timeoutHandler, timer);
 		subscribe(requestHandler, net);
 		subscribe(replyHandler, net);
-        subscribe(initHandler, epfd);
 	}
 
 }

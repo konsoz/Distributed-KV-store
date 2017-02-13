@@ -30,11 +30,11 @@ import se.kth.id2203.bootstrapping.events.Booted;
 import se.kth.id2203.bootstrapping.events.GetInitialAssignments;
 import se.kth.id2203.bootstrapping.events.InitialAssignments;
 import se.kth.id2203.bootstrapping.ports.Bootstrapping;
-import se.kth.id2203.kvstore.events.ReplicationInit;
+import se.kth.id2203.kvstore.KVService;
+import se.kth.id2203.kvstore.events.KVServiceInit;
 import se.kth.id2203.kvstore.ports.KVPort;
 import se.kth.id2203.networking.Message;
 import se.kth.id2203.networking.NetAddress;
-import se.kth.id2203.overlay.events.OverlayInit;
 import se.kth.id2203.overlay.ports.Routing;
 import se.sics.kompics.*;
 import se.sics.kompics.network.Network;
@@ -67,12 +67,7 @@ public class VSOverlayManager extends ComponentDefinition {
     //******* Fields ******
     final NetAddress self = config().getValue("id2203.project.address", NetAddress.class);
     private LookupTable lut = null;
-    private Component kvService;
     //******* Handlers ******
-
-    public VSOverlayManager(OverlayInit overlayInit) {
-        this.kvService = overlayInit.kvService;
-    }
 
     /**
      * Bootstrap server requests to get initial assignment to partitions
@@ -99,7 +94,12 @@ public class VSOverlayManager extends ComponentDefinition {
                 lut = (LookupTable) event.assignment;
                 int key = lut.reverseLookup(self);
                 Collection<NetAddress> replicationGroup = lut.lookup(key);
-                trigger(new ReplicationInit((Set) replicationGroup), kvPort);
+                Component kvService = create(KVService.class, new KVServiceInit((Set) replicationGroup));
+                KVService kvServicedef = (KVService) kvService.getComponent();
+                connect(kvServicedef.kvPort, kvPort, Channel.TWO_WAY);
+                connect(timer, kvService.getNegative(Timer.class), Channel.TWO_WAY);
+                connect(net, kvService.getNegative(Network.class), Channel.TWO_WAY);
+                trigger(new Start(), kvService.getControl());
             } else {
                 LOG.error("Got invalid NodeAssignment type. Expected: LookupTable; Got: {}", event.assignment.getClass());
             }

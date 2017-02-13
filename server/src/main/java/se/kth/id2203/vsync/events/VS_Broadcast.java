@@ -1,20 +1,17 @@
-package se.kth.id2203.broadcast.beb.events;
+package se.kth.id2203.vsync.events;
 
-import se.kth.id2203.networking.NetAddress;
 import se.sics.kompics.KompicsEvent;
 import se.sics.kompics.PatternExtractor;
 
 /**
  * @author Kim Hammar on 2017-02-08.
  */
-public class BEB_Deliver implements PatternExtractor<Class, KompicsEvent> {
+public class VS_Broadcast implements PatternExtractor<Class, KompicsEvent> {
 
     public final KompicsEvent message;
-    public final NetAddress source;
 
-    public BEB_Deliver(KompicsEvent message, NetAddress source) {
+    public VS_Broadcast(KompicsEvent message) {
         this.message = message;
-        this.source = source;
     }
 
     @Override

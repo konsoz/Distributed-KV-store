@@ -37,6 +37,7 @@ public class Operation implements KompicsEvent, Serializable {
 
     private static final long serialVersionUID = 2525600659083087179L;
 
+    public final String value;
     public final String key;
     public final UUID id;
     public final OperationCode operationCode;
@@ -45,6 +46,14 @@ public class Operation implements KompicsEvent, Serializable {
         this.key = key;
         this.operationCode = operationCode;
         this.id = UUID.randomUUID();
+        this.value = null;
+    }
+
+    public Operation(String value, String key, UUID id, OperationCode operationCode) {
+        this.value = value;
+        this.key = key;
+        this.id = id;
+        this.operationCode = operationCode;
     }
 
     @Override

@@ -6,11 +6,11 @@ import se.sics.kompics.Init;
 
 import java.util.Set;
 
-public class VSyncInit extends Init<VSyncService> {
+public class VSyncParentInit extends Init<VSyncService> {
 
 	public final Set<NetAddress> nodes;
 
-	public VSyncInit(Set<NetAddress> nodes){
+	public VSyncParentInit(Set<NetAddress> nodes){
 		this.nodes = nodes;
 	}
 

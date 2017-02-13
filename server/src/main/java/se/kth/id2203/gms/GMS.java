@@ -13,13 +13,13 @@ import se.kth.id2203.gms.events.GMSInit;
 import se.kth.id2203.gms.events.View;
 import se.kth.id2203.gms.ports.GMSPort;
 import se.kth.id2203.networking.NetAddress;
+import se.kth.id2203.omega.Omega;
 import se.kth.id2203.omega.events.OmegaInit;
 import se.kth.id2203.omega.events.Trust;
 import se.kth.id2203.omega.ports.OmegaPort;
-import se.sics.kompics.ComponentDefinition;
-import se.sics.kompics.Handler;
-import se.sics.kompics.Negative;
-import se.sics.kompics.Positive;
+import se.sics.kompics.*;
+import se.sics.kompics.network.Network;
+import se.sics.kompics.timer.Timer;
 
 import java.util.Set;
 
@@ -29,7 +29,9 @@ import java.util.Set;
 public class GMS extends ComponentDefinition {
 
     final static Logger LOG = LoggerFactory.getLogger(GMS.class);
-    protected final Negative<GMSPort> gmsPort = provides(GMSPort.class);
+    protected final Positive<Timer> timer = requires(Timer.class);
+    protected final Positive<Network> net = requires(Network.class);
+    public final Negative<GMSPort> gmsPort = provides(GMSPort.class);
     protected final Positive<OmegaPort> omegaPort = requires(OmegaPort.class);
     protected final Positive<EPFDPort> epfdPort = requires(EPFDPort.class);
     protected final Positive<BEBPort> broadcastPort = requires(BEBPort.class);
@@ -38,17 +40,24 @@ public class GMS extends ComponentDefinition {
     private final NetAddress self = config().getValue("id2203.project.address", NetAddress.class);
     private NetAddress leader = null;
     private Role role;
+    private Component omega;
 
-    protected final Handler<GMSInit> gmsInitHandler = new Handler<GMSInit>() {
-        @Override
-        public void handle(GMSInit gmsInit) {
-            LOG.debug("GMS Initialized");
-            viewId = 0;
-            members = ImmutableSet.copyOf(gmsInit.nodes);
-            role = Role.WORKER;
-            trigger(new OmegaInit(ImmutableSet.copyOf(gmsInit.nodes)), omegaPort);
-        }
-    };
+    public GMS(GMSInit gmsInit){
+        LOG.debug("GMS Initialized");
+        viewId = 0;
+        members = ImmutableSet.copyOf(gmsInit.nodes);
+        role = Role.WORKER;
+        //trigger(new OmegaInit(ImmutableSet.copyOf(gmsInit.nodes)), omegaPort);
+        omega = create(Omega.class, new OmegaInit(gmsInit.nodes));
+        //connect(omega.getPositive(OmegaPort.class), ((Component)this).getNegative(OmegaPort.class), Channel.TWO_WAY);
+
+        Omega omegadef = (Omega) omega.getComponent();
+        connect(omegadef.omegaPort, omegaPort, Channel.TWO_WAY);
+
+        connect(timer, omega.getNegative(Timer.class), Channel.TWO_WAY);
+        connect(net, omega.getNegative(Network.class), Channel.TWO_WAY);
+        //trigger(new Start(), omega.getControl());
+    }
 
     protected  final Handler<Trust> trustedHandler = new Handler<Trust>() {
         @Override
@@ -105,7 +114,6 @@ public class GMS extends ComponentDefinition {
         subscribe(trustedHandler, omegaPort);
         subscribe(viewHandler, broadcastPort);
         subscribe(suspectHandler, epfdPort);
-        subscribe(gmsInitHandler, gmsPort);
     }
 
     public enum Role {
